@@ -13,10 +13,16 @@ setwd(datadir)
 # Read in phenotype data and the raw CEL files
 pd <- read.AnnotatedDataFrame("estrogen.txt", header=TRUE, sep="", row.names=1)
 show(pd)
+pd
 
 a <- ReadAffy(filenames=rownames(pData(pd)), phenoData=pd, verbose=TRUE)
-show(a$phenoData)
 pData(a)
+
+a
+
+expr_sub <- exprs(a)[1:10,]
+expr_sub
+
 
 x = expresso(
   a, 
