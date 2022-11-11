@@ -17,141 +17,76 @@ show(pd)
 
 a <- ReadAffy(filenames=paste(datadir,rownames(pData(pd))[5:6],sep='/'), phenoData=pd, verbose=TRUE)
 a2 <- ReadAffy(filenames=paste(datadir,rownames(pData(pd))[7:8],sep='/'), phenoData=pd, verbose=TRUE)
-show(a$phenoData)
-pData(a)
+pData(pd)
 
-ls(hgu95av2cdf)[1:20]
+espresso = function(a){
+  return(expresso(
+    a, 
+    bgcorrect.method = "rma",
+    normalize.method = "constant",
+    pmcorrect.method = "pmonly",
+    summary.method = "avgdiff",
+    summary.subset = ls(hgu95av2cdf)[1:200]
+  ))
+}
 
-a@assayData$exprs
+x = espresso(a)
 
-a
-a2
-
-x = expresso(
-  a, 
-  bgcorrect.method = "rma",
-  normalize.method = "constant",
-  pmcorrect.method = "pmonly",
-  summary.method = "avgdiff",
-  summary.subset = ls(hgu95av2cdf)[1:20]
-  )
-
-x2 = expresso(
-  a2, 
-  bgcorrect.method = "rma",
-  normalize.method = "constant",
-  pmcorrect.method = "pmonly",
-  summary.method = "avgdiff",
-  summary.subset = ls(hgu95av2cdf)[1:20]
-)
-
-exprs(x)
-exprs(x2)
-
-# # Remove control probes
-# controlProbeIdx <- grep("^AFFX", rownames(x2))
-# x <- x[-controlProbeIdx,]
-# controlProbeIdx
-# 
-# controlProbeIdx2 <- grep("^AFFX", rownames(x))
-# x2 <- x2[-controlProbeIdx2,]
-
-# Identify genes of significant effect
-# lm.coef <- function(y) lm(y ~ estrogen * time.h)$coefficients
-# eff <- esApply(x, 1, lm.coef)
-# effectUp <- names(sort(eff[2,], decreasing=TRUE)[1:25])
-# effectDown <- names(sort(eff[2,], decreasing=FALSE)[1:25])
-# main.effects <- c(effectUp, effectDown)
-
-# Make BGX ver.
+x2 = espresso(a2)
 
 
-# Filter the expression set object to include only genes of significant effect
-# estrogenMainEffects <- exprs(x)[main.effects,]
-# head(estrogenMainEffects)
+buildAdjecency = function(x){
+  return(graph.adjacency(
+    as.matrix(as.dist(cor(t(exprs(x)), method="pearson"))),
+    mode="undirected",
+    weighted=TRUE,
+    diag=FALSE
+  ))
+}
 
-# b@assayData$exprs
+g <- buildAdjecency(x)
 
-# bexpr <- b@assayData$exprs
+g2 <- buildAdjecency(x2)
 
-# Create a graph adjacency based on correlation distances between genes in  pairwise fashion.
-g <- graph.adjacency(
-  as.matrix(as.dist(cor(t(exprs(x)), method="pearson"))),
-  mode="undirected",
-  weighted=TRUE,
-  diag=FALSE
-)
+processGraph = function(g){
+  # Simplfy the adjacency object
+  g <- simplify(g, remove.multiple=TRUE, remove.loops=TRUE)
+  
+  # Colour negative correlation edges as blue
+  E(g)[which(E(g)$weight<0)]$color <- "darkblue"
+  
+  # Colour positive correlation edges as red
+  E(g)[which(E(g)$weight>0)]$color <- "darkred"
+  
+  # Convert edge weights to absolute values
+  E(g)$weight <- abs(E(g)$weight)
+  
+  # Delete weakly correlated edges
+  g <- delete_edges(g, E(g)[which(E(g)$weight<0.8)])
+  
+  # Remove any vertices remaining that have no edges
+  g <- delete.vertices(g, degree(g)==0)
+  
+  # Assign names to the graph vertices (optional)
+  V(g)$name <- V(g)$name
+  
+  # Change shape of graph vertices
+  V(g)$shape <- "sphere"
+  
+  # Change colour of graph vertices
+  V(g)$color <- "purple"
+  
+  # Change colour of vertex frames
+  V(g)$vertex.frame.color <- "white"
+  
+  # Amplify or decrease the width of the edges
+  edgeweights <- E(g)$weight * 2.0
+  
+  return(g)
+}
 
-g
-
-g2 <- graph.adjacency(
-  as.matrix(as.dist(cor(t(exprs(x2)), method="pearson"))),
-  mode="undirected",
-  weighted=TRUE,
-  diag=FALSE
-)
-
-g2
-
-# Simplfy the adjacency object
-g <- simplify(g, remove.multiple=TRUE, remove.loops=TRUE)
-
-# Colour negative correlation edges as blue
-E(g)[which(E(g)$weight<0)]$color <- "darkblue"
-
-# Colour positive correlation edges as red
-E(g)[which(E(g)$weight>0)]$color <- "darkred"
-
-# Convert edge weights to absolute values
-E(g)$weight <- abs(E(g)$weight)
-
-E(g)$weight
-
-
-g2 <- simplify(g2, remove.multiple=TRUE, remove.loops=TRUE)
-
-# Colour negative correlation edges as blue
-E(g2)[which(E(g2)$weight<0)]$color <- "darkblue"
-
-# Colour positive correlation edges as red
-E(g2)[which(E(g2)$weight>0)]$color <- "darkred"
-
-# Convert edge weights to absolute values
-E(g2)$weight <- abs(E(g2)$weight)
-
-E(g2)$weight
-
-# Change arrow size
-# For directed graphs only
-#E(g)$arrow.size <- 1.0
-
-# Remove edges below absolute Pearson correlation 0.8
-g <- delete_edges(g, E(g)[which(E(g)$weight<0.8)])
-g2 <- delete_edges(g2, E(g2)[which(E(g2)$weight<0.8)])
-
-g
-g2
-
-# Remove any vertices remaining that have no edges
-g <- delete.vertices(g, degree(g)==0)
-g2 <- delete.vertices(g2, degree(g2)==0)
-g
-# Assign names to the graph vertices (optional)
-V(g)$name <- V(g)$name
-V(g2)$name <- V(g2)$name
-
-
-# Change shape of graph vertices
-V(g)$shape <- "sphere"
-V(g2)$shape <- "sphere"
-
-# Change colour of graph vertices
-V(g)$color <- "purple"
-V(g2)$color <- "purple"
-
-# Change colour of vertex frames
-V(g)$vertex.frame.color <- "white"
-V(g2)$vertex.frame.color <- "white"
+g = processGraph(g)
+g2 = processGraph(g2)
 
 # Scale the size of the vertices to be proportional to the level of expression of each gene represented by each vertex
 # Multiply scaled vales by a factor of 10
@@ -159,67 +94,41 @@ scale01 <- function(x){(x-min(x))/(max(x)-min(x))}
 vSizes <- (scale01(apply(exprs(x), 1, mean)) + 1.0) * 10
 vSizes2 <- (scale01(apply(exprs(x2), 1, mean)) + 1.0) * 10
 
-# Amplify or decrease the width of the edges
-edgeweights <- E(g)$weight * 2.0
-edgeweights2 <- E(g2)$weight * 2.0
-
-edgeweights
-edgeweights2
-
 # Convert the graph adjacency object into a minimum spanning tree based on Prim's algorithm
-mst <- mst(g, algorithm="prim")
-mst2 <- mst(g2, algorithm="prim")
+buildCommunity = function(g){
+  mst1 <- mst(g, algorithm="prim")
+  mst1.communities <- edge.betweenness.community(mst1, weights=NULL, directed=FALSE)
+  mst1.clustering <- make_clusters(mst1, membership=mst1.communities$membership)
+  V(mst1)$color <- mst1.communities$membership + 1
+  return (list(mst1,mst1.communities,mst1.clustering))
+}
 
-par(mfrow=c(2,1), bg = "#202020", col.main = "white")
-# Plot the tree object
-plot(
-  mst,
-  layout=layout.fruchterman.reingold,
-  edge.curved=TRUE,
-  vertex.size=vSizes,
-  vertex.label.dist=-0.5,
-  vertex.label.color="white",
-  asp=FALSE,
-  vertex.label.cex=0.6,
-  edge.width=edgeweights,
-  edge.arrow.mode=0,
-  main="Graph Test 1")
+mstabuild = buildCommunity(g)
+msta = mstabuild[[1]]
+msta.communities = mstabuild[[2]]
+msta.clustering = mstabuild[[3]]
 
-plot(
-  mst2,
-  layout=layout.fruchterman.reingold,
-  edge.curved=TRUE,
-  vertex.size=vSizes2,
-  vertex.label.dist=-0.5,
-  vertex.label.color="white",
-  asp=FALSE,
-  vertex.label.cex=0.6,
-  edge.width=edgeweights2,
-  edge.arrow.mode=0,
-  main="Graph Test 2")
+mstabuild = buildCommunity(g2)
+mstb = mstabuild[[1]]
+mstb.communities = mstabuild[[2]]
+mstb.clustering = mstabuild[[3]]
 
+rbind(msta.communities$names,msta.communities$membership)
+rbind(mstb.communities$names,mstb.communities$membership)
 
-V(g)
+com = msta.communities$membership
+com2 = mstb.communities$membership
 
-a <- V
-
-?V
-
-
-
-
-mst.communities <- edge.betweenness.community(mst, weights=NULL, directed=FALSE)
-mst.clustering <- make_clusters(mst, membership=mst.communities$membership)
-V(mst)$color <- mst.communities$membership + 1
+sum(com==com2)/length(com)*100
 
 par(mfrow=c(1,2))
 plot(
-  mst.clustering, mst,
+  msta.clustering, msta,
   layout=layout.fruchterman.reingold,
   edge.curved=TRUE,
   vertex.size=vSizes,
   vertex.label.dist=-0.5,
-  vertex.label.color="white",
+  vertex.label.color="black",
   asp=FALSE,
   vertex.label.cex=0.6,
   edge.width=edgeweights,
@@ -227,12 +136,12 @@ plot(
   main="Com1")
 
 plot(
-  mst,
+  mstb.clustering, mstb,
   layout=layout.fruchterman.reingold,
   edge.curved=TRUE,
-  vertex.size=vSizes,
+  vertex.size=vSizes2,
   vertex.label.dist=-0.5,
-  vertex.label.color="white",
+  vertex.label.color="black",
   asp=FALSE,
   vertex.label.cex=0.6,
   edge.width=edgeweights,
