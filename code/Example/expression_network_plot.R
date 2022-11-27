@@ -2,13 +2,18 @@ library(affy)
 library(estrogen)
 library(vsn)
 library(genefilter)
-
 library(igraph)
+library("hgu95av2.db")
+
+ls("package:hgu95av2.db")
 
 
 datadir <- system.file("extdata", package="estrogen")
 #dir(datadir)
 #setwd(datadir)
+
+
+
 
 
 # Read in phenotype data and the raw CEL files
@@ -26,13 +31,17 @@ espresso = function(a){
     normalize.method = "constant",
     pmcorrect.method = "pmonly",
     summary.method = "avgdiff",
-    summary.subset = ls(hgu95av2cdf)[1:200]
+    summary.subset = ls(hgu95av2cdf)[1:20]
   ))
 }
 
 x = espresso(a)
 
 x2 = espresso(a2)
+
+head(a2@assayData$exprs, n = 20)
+
+
 
 
 buildAdjecency = function(x){
@@ -78,15 +87,18 @@ processGraph = function(g){
   
   # Change colour of vertex frames
   V(g)$vertex.frame.color <- "white"
-  
-  # Amplify or decrease the width of the edges
-  edgeweights <- E(g)$weight * 2.0
-  
+
   return(g)
 }
 
 g = processGraph(g)
 g2 = processGraph(g2)
+
+# Amplify or decrease the width of the edges
+  edgeweights <- E(g)$weight * 2.0
+
+# Amplify or decrease the width of the edges
+  edgeweights2 <- E(g)$weight * 2.0
 
 # Scale the size of the vertices to be proportional to the level of expression of each gene represented by each vertex
 # Multiply scaled vales by a factor of 10
@@ -121,6 +133,8 @@ com2 = mstb.communities$membership
 
 sum(com==com2)/length(com)*100
 
+
+
 par(mfrow=c(1,2))
 plot(
   msta.clustering, msta,
@@ -130,10 +144,10 @@ plot(
   vertex.label.dist=-0.5,
   vertex.label.color="black",
   asp=FALSE,
-  vertex.label.cex=0.6,
+  vertex.label.cex=1,
   edge.width=edgeweights,
   edge.arrow.mode=0,
-  main="Com1")
+  main="Estrogen Absent")
 
 plot(
   mstb.clustering, mstb,
@@ -143,7 +157,7 @@ plot(
   vertex.label.dist=-0.5,
   vertex.label.color="black",
   asp=FALSE,
-  vertex.label.cex=0.6,
-  edge.width=edgeweights,
+  vertex.label.cex=1,
+  edge.width=edgeweights2,
   edge.arrow.mode=0,
-  main="Com2")
+  main="Estrogen Present")
