@@ -13,9 +13,6 @@ datadir <- system.file("extdata", package="estrogen")
 #setwd(datadir)
 
 
-
-
-
 # Read in phenotype data and the raw CEL files
 pd <- read.AnnotatedDataFrame(paste0(datadir,"/estrogen.txt"), header=TRUE, sep="", row.names=1)
 show(pd)
@@ -133,7 +130,18 @@ com2 = mstb.communities$membership
 
 sum(com==com2)/length(com)*100
 
+hgu95av2_dbconn()
+quer = select(hgu95av2.db, keys=probes[1], columns=c("GO","GOALL", "GENENAME", "PFAM"), keytype="PROBEID")
+#quer = head(quer, n = 2000)
+#unique("100_g_at" %l% quer[,1:2])
 
+names = V(g)$name
+names
+unique(names[3] %l% quer[,1:2])
+for(i in 1:length(names)){
+  names[i] = unique(names[i] %l% quer[,1:2])
+}
+names
 
 par(mfrow=c(1,2))
 plot(
