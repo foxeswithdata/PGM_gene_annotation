@@ -1,0 +1,28 @@
+plugins {
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    // https://mvnrepository.com/artifact/ai.djl/api
+    implementation group: 'ai.djl', name: 'api', version: '0.20.0'
+    implementation group: 'ai.djl', name: 'basicdataset', version: '0.20.0'
+    implementation group: 'ai.djl', name: 'model-zoo', version: '0.20.0'
+    implementation group: 'ai.djl.mxnet', name: 'mxnet-engine', version: '0.20.0'
+    implementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.32'
+}
+
+test {
+    useJUnitPlatform()
+}
