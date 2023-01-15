@@ -1,4 +1,5 @@
 import ai.djl.*;
+import ai.djl.basicmodelzoo.basic.Mlp;
 import ai.djl.inference.Predictor;
 import ai.djl.modality.Classifications;
 import ai.djl.modality.cv.Image;
@@ -6,12 +7,15 @@ import ai.djl.modality.cv.ImageFactory;
 import ai.djl.modality.cv.util.NDImageUtils;
 import ai.djl.ndarray.NDArray;
 import ai.djl.ndarray.NDList;
+import ai.djl.ndarray.NDManager;
 import ai.djl.nn.*;
 import ai.djl.nn.core.*;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -19,6 +23,8 @@ import java.util.stream.IntStream;
 import ai.djl.basicdataset.cv.classification.Mnist;
 import ai.djl.ndarray.types.*;
 import ai.djl.training.*;
+import ai.djl.training.dataset.Batch;
+import ai.djl.training.dataset.Dataset;
 import ai.djl.training.loss.*;
 import ai.djl.training.listener.*;
 import ai.djl.training.evaluator.*;
@@ -27,10 +33,12 @@ import ai.djl.translate.Batchifier;
 import ai.djl.translate.TranslateException;
 import ai.djl.translate.Translator;
 import ai.djl.translate.TranslatorContext;
+import ai.djl.util.Progress;
 import processing.core.PApplet;
 
 public class main extends PApplet {
-    static int epochs = 2;
+    static int epochs = 22;
+    public static boolean cont = false;
 
     private static final Translator<Image, Classifications> translator = new Translator<Image, Classifications>() {
 
@@ -73,15 +81,24 @@ public class main extends PApplet {
         if (choice == 1) {
             SequentialBlock network = buildNetwork();
             Model model = trainNetwork(network);
-            saveModel(model, "models/test");
+            saveModel(model, "models/test/");
         } else if (choice == 2) {
-            Model model = loadModel("models/test");
+            Model model = loadModel("models/test/");
             PApplet.main("main");
+            System.out.println("Awaiting confirmation...");
+            while (!cont) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
             predictInput(model);
+            cont = false;
         } else {
             System.out.println("Invalid choice, please try again");
-            runApp();
         }
+        runApp();
     }
 
     public void settings() {
@@ -89,15 +106,22 @@ public class main extends PApplet {
     }
 
     public void setup() {
-        background(255);
+        background(0);
     }
 
     public void draw() {
         strokeWeight(2);
-        stroke(0);
+        stroke(255);
         if (mousePressed) {
             line(mouseX, mouseY, pmouseX, pmouseY);
         }
+    }
+
+    @Override
+    public void exit() {
+        System.out.println("Saving image...");
+        saveFrame("img.png");
+        cont = true;
     }
 
 
@@ -111,10 +135,12 @@ public class main extends PApplet {
         block.add(Blocks.batchFlattenBlock(inputSize));
 
         //hidden layers
-        block.add(Linear.builder().setUnits(128).build()); // neuron layer 1
+        block.add(Linear.builder().setUnits(256).build()); // neuron layer 1
         block.add(Activation::relu); // weights layer 1 -> layer 2
-        block.add(Linear.builder().setUnits(64).build()); // neuron layer 2
-        block.add(Activation::relu); // weights layer 2 -> output layer
+        block.add(Linear.builder().setUnits(128).build()); // neuron layer 2
+        block.add(Activation::relu); // weights layer 2 -> layer 3
+        block.add(Linear.builder().setUnits(64).build()); // neuron layer 3
+        block.add(Activation::relu); // weights layer 3 -> output layer
 
         //output layer
         block.add(Linear.builder().setUnits(outputSize).build());
@@ -122,7 +148,8 @@ public class main extends PApplet {
     }
 
     private static Model trainNetwork(SequentialBlock network) throws IOException, TranslateException {
-        int batchSize = 32;
+        int batchSize = 4096;
+
         Mnist mnist = Mnist.builder().setSampling(batchSize, true).build();
         mnist.prepare(new ProgressBar());
 
@@ -138,8 +165,8 @@ public class main extends PApplet {
         trainer.initialize(new Shape(1, 28 * 28));
 
 
-        EasyTrain.fit(trainer,epochs,mnist,null);
-
+        EasyTrain.fit(trainer,epochs,mnist, null);
+        //System.out.println(trainer.getTrainingResult().getEvaluations());
         return model;
     }
 
@@ -147,6 +174,11 @@ public class main extends PApplet {
         model.setProperty("Epoch", String.valueOf(epochs));
         Path modelDir = Paths.get(path);
         try {
+            System.out.println("Clearing other models");
+            for(File file: Objects.requireNonNull(modelDir.toFile().listFiles()))
+                if (!file.isDirectory())
+                    file.delete();
+
             Files.createDirectories(modelDir);
             model.save(modelDir, "mlpTest");
         } catch (IOException e) {
@@ -156,8 +188,8 @@ public class main extends PApplet {
 
     private static Model loadModel(String path){
         Path modelDir = Paths.get(path);
-        Model model = Model.newInstance("mlp");
-        model.setBlock(buildNetwork());
+        Model model = Model.newInstance("mlpTest");
+        model.setBlock(new Mlp(28 * 28, 10, new int[] {256, 128, 64}));
         try {
             model.load(modelDir);
         } catch (IOException | MalformedModelException e) {
@@ -171,13 +203,16 @@ public class main extends PApplet {
         Image image = null;
         try {
             image = ImageFactory.getInstance().fromFile(Paths.get("img.png"));
-            //image.getWrappedImage();
+            image.getWrappedImage();
         } catch (IOException e) {
             e.printStackTrace();
         }
         if(image != null) {
             try {
                 Classifications classifications = predictor.predict(image);
+
+                System.out.println("Probabilities are:\n"+ classifications.best());
+                System.out.println(classifications.getProbabilities());
             } catch (TranslateException e) {
                 e.printStackTrace();
             }
