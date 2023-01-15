@@ -135,12 +135,10 @@ public class main extends PApplet {
         block.add(Blocks.batchFlattenBlock(inputSize));
 
         //hidden layers
-        block.add(Linear.builder().setUnits(256).build()); // neuron layer 1
+        block.add(Linear.builder().setUnits(128).build()); // neuron layer 1
         block.add(Activation::relu); // weights layer 1 -> layer 2
-        block.add(Linear.builder().setUnits(128).build()); // neuron layer 2
-        block.add(Activation::relu); // weights layer 2 -> layer 3
-        block.add(Linear.builder().setUnits(64).build()); // neuron layer 3
-        block.add(Activation::relu); // weights layer 3 -> output layer
+        block.add(Linear.builder().setUnits(64).build()); // neuron layer 2
+        block.add(Activation::relu); // weights layer 2 -> output layer
 
         //output layer
         block.add(Linear.builder().setUnits(outputSize).build());
@@ -148,7 +146,7 @@ public class main extends PApplet {
     }
 
     private static Model trainNetwork(SequentialBlock network) throws IOException, TranslateException {
-        int batchSize = 4096;
+        int batchSize = 64;
 
         Mnist mnist = Mnist.builder().setSampling(batchSize, true).build();
         mnist.prepare(new ProgressBar());
@@ -189,7 +187,7 @@ public class main extends PApplet {
     private static Model loadModel(String path){
         Path modelDir = Paths.get(path);
         Model model = Model.newInstance("mlpTest");
-        model.setBlock(new Mlp(28 * 28, 10, new int[] {256, 128, 64}));
+        model.setBlock(new Mlp(28 * 28, 10, new int[] {128, 64}));
         try {
             model.load(modelDir);
         } catch (IOException | MalformedModelException e) {
@@ -217,6 +215,7 @@ public class main extends PApplet {
                 e.printStackTrace();
             }
         }
+        model.close();
     }
 
 
